@@ -1,11 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
+import AppLayout from '@/components/layout/AppLayout.vue'
+
 const form = ref(null)
 const submitting = ref(false)
 const message = ref({ type: '', text: '' })
-const overallData = ref([])
-const loadingOverall = ref(false)
+
 const sheetOptions = ref([])
 const formData = ref({
   sheetName: '',
@@ -34,25 +35,7 @@ onMounted(async () => {
   } catch (err) {
     console.error('Failed to fetch sheets:', err)
   }
-
-  fetchOverallTransaction()
 })
-
-function formatCell(value) {
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
-    const date = new Date(value)
-
-    if (!isNaN(date)) {
-      // Convert to local timezone
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      return `${year}-${month}-${day}`
-    }
-  }
-
-  return value
-}
 
 const handleSubmit = async () => {
   submitting.value = true
@@ -118,142 +101,191 @@ const handleReset = () => {
     deliveredDate: '',
   }
 }
-
-const fetchOverallTransaction = async () => {
-  loadingOverall.value = true
-  try {
-    const res = await fetch(
-      'https://script.google.com/macros/s/AKfycbywwa6AOFAIZYUg9GYHl-YDwcQIhf-GHC5xF-7wqcX7cPVEkx-JwnYvfSAmI4Pyn_Uy/exec?sheetName=OverallTransaction',
-    )
-    const data = await res.json()
-    overallData.value = data.rows || []
-  } catch (err) {
-    console.error('Failed to fetch Overall Transaction data:', err)
-  } finally {
-    loadingOverall.value = false
-  }
-}
 </script>
 
 <template>
-  <v-app>
-    <v-container class="pa-6" max-width="700px">
-      <v-card elevation="8" class="pa-6">
-        <v-card-title class="text-h5 font-weight-bold text-center"> Equipment Form </v-card-title>
+  <AppLayout>
+    <template #content>
+      <v-container class="pa-6" max-width="700px">
+        <v-card
+          elevation="6"
+          class="pa-6"
+          style="background: linear-gradient(135deg, #fff3e0, #ffffff); border-radius: 16px"
+        >
+          <v-card-title class="text-h5 font-weight-bold text-center mb-4 text-orange-darken-2">
+            🛠️ Equipment Request Form
+          </v-card-title>
 
-        <v-form ref="form" @submit.prevent="handleSubmit">
-          <v-select
-            v-model="formData.sheetName"
-            :items="sheetOptions"
-            label="Select Sheet"
-            name="sheetName"
-            required
-          />
+          <v-form ref="form" @submit.prevent="handleSubmit">
+            <v-row dense>
+              <v-col cols="12" md="6">
+                <v-select
+                  v-model="formData.sheetName"
+                  :items="sheetOptions"
+                  label="Select Project Sheet"
+                  name="sheetName"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-          <v-text-field
-            v-model="formData.dateRequested"
-            label="Date Requested"
-            type="date"
-            required
-          />
-          <v-text-field
-            v-model="formData.equipmentActivity"
-            label="Equipment No. Activity"
-            required
-          />
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="formData.dateRequested"
+                  label="Date Requested"
+                  type="date"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-          <v-text-field
-            v-model="formData.scheduleDateFrom"
-            label="Date Of Schedule - From"
-            type="date"
-            required
-          />
+              <v-col cols="12">
+                <v-text-field
+                  v-model="formData.equipmentActivity"
+                  label="Equipment No. / Activity"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-          <v-text-field
-            v-model="formData.scheduleDateTo"
-            label="Date Of Schedule - To"
-            type="date"
-            required
-          />
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="formData.scheduleDateFrom"
+                  label="Schedule From"
+                  type="date"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-          <v-text-field v-model="formData.requestedBy" label="Requested By" required />
-          <v-text-field v-model="formData.from" label="From" required />
-          <v-text-field v-model="formData.to" label="To" required />
-          <v-text-field v-model="formData.assigned" label="Assigned SL/PM" required />
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="formData.scheduleDateTo"
+                  label="Schedule To"
+                  type="date"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-          <v-select
-            v-model="formData.remarks"
-            :items="['Delivered', 'On-going']"
-            label="Remarks"
-            required
-          />
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="formData.requestedBy"
+                  label="Requested By"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-          <v-text-field
-            v-model="formData.deliveryStart"
-            label="Delivery Start"
-            type="date"
-            required
-          />
-          <v-text-field
-            v-model="formData.deliveredDate"
-            label="Delivered Date"
-            type="date"
-            required
-          />
+              <v-col cols="6" md="3">
+                <v-text-field
+                  v-model="formData.from"
+                  label="From"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-          <v-alert v-if="message.text" :type="message.type" class="mt-4">
-            {{ message.text }}
-          </v-alert>
+              <v-col cols="6" md="3">
+                <v-text-field
+                  v-model="formData.to"
+                  label="To"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-          <v-row class="mt-6" justify="center" align="center">
-            <v-col cols="12" sm="6">
-              <v-btn
-                type="submit"
-                color="primary"
-                block
-                :loading="submitting"
-                :disabled="submitting"
-              >
-                Submit
-              </v-btn>
-            </v-col>
-            <v-col cols="12" sm="6">
-              <v-btn color="error" block @click="handleReset"> Cancel </v-btn>
-            </v-col>
-          </v-row>
-        </v-form>
-      </v-card>
-    </v-container>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="formData.assigned"
+                  label="Assigned SL/PM"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-    <v-card elevation="4" class="mt-8">
-      <v-card-title class="text-h6 font-weight-medium">📋 Overall Transaction</v-card-title>
-      <v-card-text>
-        <v-progress-linear
-          v-if="loadingOverall"
-          indeterminate
-          color="primary"
-          class="mb-4"
-        ></v-progress-linear>
+              <v-col cols="12" md="6">
+                <v-select
+                  v-model="formData.remarks"
+                  :items="['Delivered', 'On-going']"
+                  label="Remarks"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-        <v-table v-else>
-          <thead>
-            <tr>
-              <th v-for="(key, index) in Object.keys(overallData[0] || {})" :key="index">
-                {{ key }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, rowIndex) in overallData" :key="rowIndex">
-              <td v-for="(value, key) in row" :key="key">
-                {{ formatCell(value) }}
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="formData.deliveryStart"
+                  label="Delivery Start"
+                  type="date"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
 
-        <p v-if="!overallData.length && !loadingOverall" class="text-grey">No data available.</p>
-      </v-card-text>
-    </v-card>
-  </v-app>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="formData.deliveredDate"
+                  label="Delivered Date"
+                  type="date"
+                  required
+                  variant="outlined"
+                  density="comfortable"
+                />
+              </v-col>
+            </v-row>
+
+            <v-alert
+              v-if="message.text"
+              :type="message.type"
+              class="my-4"
+              border="start"
+              border-color="orange"
+            >
+              {{ message.text }}
+            </v-alert>
+
+            <v-row class="mt-4" justify="center" align="center">
+              <v-col cols="12" sm="6">
+                <v-btn
+                  type="submit"
+                  color="orange"
+                  block
+                  :loading="submitting"
+                  :disabled="submitting"
+                  size="large"
+                  elevation="2"
+                >
+                  Send to Excel
+                </v-btn>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-btn
+                  color="grey-darken-1"
+                  block
+                  @click="handleReset"
+                  size="large"
+                  variant="outlined"
+                >
+                  Cancel
+                </v-btn>
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card>
+      </v-container>
+    </template>
+  </AppLayout>
 </template>
