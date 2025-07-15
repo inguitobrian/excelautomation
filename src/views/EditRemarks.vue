@@ -3,12 +3,32 @@ import { ref, onMounted, computed } from 'vue'
 import Swal from 'sweetalert2'
 import AppLayout from '@/components/layout/AppLayout.vue'
 
-const sheetName = 'Arvin'
+const selectedSheet = ref('')
+const sheetOptions = ref([])
+
 const tableData = ref([])
 const loading = ref(true)
 const isUpdating = ref(false)
 const searchQuery = ref('')
 const selectedFilter = ref('All')
+
+function formatCell(value) {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const date = new Date(value)
+    if (!isNaN(date)) {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+  }
+
+  if (typeof value === 'number') {
+    return value.toLocaleString()
+  }
+
+  return value
+}
 
 // Computed property for filtered data
 const filteredData = computed(() => {
@@ -35,15 +55,15 @@ const remarkOptions = ['Pending', 'On-going', 'Delivered']
 const filterOptions = ['All', ...remarkOptions]
 
 const fetchSheetData = async () => {
+  if (!selectedSheet.value) return
+
   loading.value = true
   try {
     const response = await fetch(
-      `https://script.google.com/macros/s/AKfycbywwa6AOFAIZYUg9GYHl-YDwcQIhf-GHC5xF-7wqcX7cPVEkx-JwnYvfSAmI4Pyn_Uy/exec?sheetName=${sheetName}`,
+      `https://script.google.com/macros/s/AKfycbywwa6AOFAIZYUg9GYHl-YDwcQIhf-GHC5xF-7wqcX7cPVEkx-JwnYvfSAmI4Pyn_Uy/exec?sheetName=${selectedSheet.value}`,
     )
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
 
     const data = await response.json()
     tableData.value = data.rows || []
@@ -84,7 +104,7 @@ const updateRemark = async (rowIndex) => {
         method: 'POST',
         body: JSON.stringify({
           action: 'updateRemarks',
-          sheetName,
+          sheetName: selectedSheet.value,
           rsNumber: row['RS Number'],
           remarks: row['Remarks'],
         }),
@@ -144,7 +164,7 @@ const updateAllPending = async () => {
           method: 'POST',
           body: JSON.stringify({
             action: 'updateRemarks',
-            sheetName,
+            sheetName: selectedSheet.value,
             rsNumber: row['RS Number'],
             remarks: 'On-going',
           }),
@@ -166,16 +186,46 @@ const updateAllPending = async () => {
   }
 }
 
-onMounted(fetchSheetData)
+const fetchSheetNames = async () => {
+  try {
+    const res = await fetch(
+      'https://script.google.com/macros/s/AKfycbywwa6AOFAIZYUg9GYHl-YDwcQIhf-GHC5xF-7wqcX7cPVEkx-JwnYvfSAmI4Pyn_Uy/exec',
+    )
+    const data = await res.json()
+    sheetOptions.value = (data.sheets || []).filter((name) => name !== 'OverallTransaction')
+
+    // Auto-select the first one
+    if (sheetOptions.value.length) {
+      selectedSheet.value = sheetOptions.value[0]
+      await fetchSheetData()
+    }
+  } catch (err) {
+    console.error('Failed to fetch sheets:', err)
+    Swal.fire('Error', 'Failed to load sheet list.', 'error')
+  }
+}
+
+onMounted(() => {
+  fetchSheetNames()
+})
 </script>
 
 <template>
   <AppLayout>
     <template #content>
       <v-card elevation="4" class="pa-4">
-        <v-card-title class="text-h6 font-weight-bold mb-4">
-          📝 Edit Remarks - {{ sheetName }}
-        </v-card-title>
+        <v-row class="mb-2">
+          <v-col cols="12" md="4">
+            <v-select
+              v-model="selectedSheet"
+              :items="sheetOptions"
+              label="Select Sheet"
+              variant="outlined"
+              density="compact"
+              @update:modelValue="fetchSheetData"
+            />
+          </v-col>
+        </v-row>
 
         <!-- Search and Filter Controls -->
         <v-row class="mb-4">
@@ -227,7 +277,6 @@ onMounted(fetchSheetData)
               >
                 {{ key }}
               </th>
-              <th class="font-weight-bold">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -237,28 +286,9 @@ onMounted(fetchSheetData)
               :class="getRowClass(row['Remarks'])"
             >
               <td v-for="(value, key) in row" :key="key">
-                <v-select
-                  v-if="key === 'Remarks'"
-                  v-model="row[key]"
-                  :items="remarkOptions"
-                  density="compact"
-                  hide-details
-                  variant="outlined"
-                  :color="getRemarkColor(row[key])"
-                />
-                <span v-else>{{ value }}</span>
-              </td>
-              <td>
-                <v-btn
-                  size="small"
-                  color="primary"
-                  :loading="isUpdating"
-                  @click="updateRemark(index)"
-                  variant="outlined"
-                >
-                  <v-icon left size="small">mdi-content-save</v-icon>
-                  Save
-                </v-btn>
+                <span :class="key === 'Remarks' ? getRemarkColor(row[key]) : ''">
+                  {{ formatCell(value) }}
+                </span>
               </td>
             </tr>
           </tbody>

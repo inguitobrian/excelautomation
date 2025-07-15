@@ -117,25 +117,13 @@ const securityFeatures = [
               <h1 class="system-title">Haulers Scheduling</h1>
             </div>
           </div>
-
-          <div class="admin-badge">
-            <v-chip
-              color="orange"
-              variant="elevated"
-              size="small"
-              prepend-icon="mdi-crown"
-              class="admin-chip"
-            >
-              Administrator Access
-            </v-chip>
-          </div>
         </div>
       </div>
 
       <!-- Form Section -->
       <v-card-text class="form-section">
         <div class="welcome-text">
-          <h2 class="welcome-title">Welcome Back, Administrator</h2>
+          <h2 class="welcome-title">Scheduling System</h2>
         </div>
 
         <v-form ref="refVForm" fast-fail @submit.prevent="onFormSubmit">
