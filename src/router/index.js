@@ -22,44 +22,43 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/login', // Redirect root to login
+      redirect: '/transactions', // 👈 landing page is /transactions
     },
     {
       path: '/transactions',
       name: 'home',
       component: TransactionView,
-      meta: { requiresAuth: true }, // Protected route
+      meta: { requiresAuth: false }, // 👈 public route
     },
     {
       path: '/inputform',
       name: 'excelform',
       component: InputData,
-      meta: { requiresAuth: true }, // Protected route
+      meta: { requiresAuth: true }, // 👈 protected
     },
     {
       path: '/editremarks',
       name: 'Editremarks',
       component: EditRemarks,
-      meta: { requiresAuth: true }, // Protected route
+      meta: { requiresAuth: true }, // 👈 protected
     },
     {
       path: '/login',
       name: 'Loginform',
       component: LoginForm,
-      meta: { requiresGuest: true }, // Only accessible when not authenticated
+      meta: { requiresGuest: true }, // guest only
     },
     {
       path: '/logout',
       name: 'Logout',
       beforeEnter: (to, from, next) => {
-        // Clear authentication and redirect to login
         clearAuth()
         next('/login')
       },
     },
     {
       path: '/:pathMatch(.*)*',
-      redirect: '/login', // Catch-all route redirects to login
+      redirect: '/transactions',
     },
   ],
 })
@@ -68,21 +67,18 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authenticated = isAuthenticated()
 
-  // Check if route requires authentication
+  // Protected route
   if (to.meta.requiresAuth && !authenticated) {
-    // User is not authenticated, redirect to login
     next('/login')
     return
   }
 
-  // Check if route requires guest (not authenticated)
+  // Guest-only route
   if (to.meta.requiresGuest && authenticated) {
-    // User is already authenticated, redirect to main page
     next('/inputform')
     return
   }
 
-  // Continue with navigation
   next()
 })
 

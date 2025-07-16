@@ -18,10 +18,14 @@ const handleLogout = () => {
   router.push('/logout')
 }
 
+const isLoggedIn = computed(() => {
+  return localStorage.getItem('isAuthenticated') === 'true'
+})
+
 // Navigation items with construction-themed icons
 const navigationItems = [
   {
-    to: '/',
+    to: '/inputform',
     title: 'Dashboard',
     icon: 'mdi-view-dashboard',
     subtitle: 'Send to Excel',
@@ -85,11 +89,20 @@ const navigationItems = [
               rounded="lg"
             />
             <v-list-item
+              v-if="isLoggedIn"
               prepend-icon="mdi-logout"
               title="Sign Out"
               class="nav-item"
               rounded="lg"
               @click="handleLogout"
+            />
+            <v-list-item
+              v-else
+              prepend-icon="mdi-login"
+              title="Log In"
+              class="nav-item"
+              rounded="lg"
+              @click="() => router.push('/login')"
             />
           </div>
         </template>
