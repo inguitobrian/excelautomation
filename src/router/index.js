@@ -3,6 +3,7 @@ import InputData from '@/views/InputData.vue'
 import TransactionView from '@/views/TransactionView.vue'
 import EditRemarks from '@/views/EditRemarks.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
+import CalendarSchedule from '@/views/CalendarSchedule.vue'
 
 // Authentication helper function
 const isAuthenticated = () => {
@@ -47,6 +48,12 @@ const router = createRouter({
       name: 'Loginform',
       component: LoginForm,
       meta: { requiresGuest: true }, // guest only
+    },
+    {
+      path: '/calendar',
+      name: 'CalendarSchedule',
+      component: CalendarSchedule,
+      meta: { requiresAuth: true },
     },
     {
       path: '/logout',

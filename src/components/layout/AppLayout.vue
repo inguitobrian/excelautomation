@@ -42,6 +42,12 @@ const navigationItems = [
     icon: 'mdi-cog',
     subtitle: 'System Configuration',
   },
+  {
+    to: '/calendar',
+    title: 'Calendar Schedule',
+    icon: 'mdi-calendar',
+    subtitle: 'Scheduling',
+  },
 ]
 </script>
 
