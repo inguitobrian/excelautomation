@@ -143,8 +143,8 @@ const handleReset = () => {
                   <v-icon class="leaf leaf-3">mdi-flower</v-icon>
                 </div>
               </div>
-              <h1 class="hero-title">🌿 Eco Construction Equipment Management</h1>
-              <p class="hero-subtitle">Sustainable equipment management for a greener future</p>
+              <h1 class="hero-title">🌿Construction Equipment Management</h1>
+              <p class="hero-subtitle">equipment management for evenpar</p>
             </div>
           </div>
 
