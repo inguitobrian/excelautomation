@@ -23,25 +23,25 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/transactions', // 👈 landing page is /transactions
+      redirect: '/transactions',
     },
     {
       path: '/transactions',
       name: 'home',
       component: TransactionView,
-      meta: { requiresAuth: false }, // 👈 public route
+      meta: { requiresAuth: true }, // 👈 now protected
     },
     {
       path: '/inputform',
       name: 'excelform',
       component: InputData,
-      meta: { requiresAuth: true }, // 👈 protected
+      meta: { requiresAuth: true },
     },
     {
       path: '/editremarks',
       name: 'Editremarks',
       component: EditRemarks,
-      meta: { requiresAuth: true }, // 👈 protected
+      meta: { requiresAuth: true },
     },
     {
       path: '/login',
@@ -65,7 +65,7 @@ const router = createRouter({
     },
     {
       path: '/:pathMatch(.*)*',
-      redirect: '/transactions',
+      redirect: '/login', // 👈 redirect unknown routes to login
     },
   ],
 })
@@ -74,15 +74,15 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authenticated = isAuthenticated()
 
-  // Protected route
-  if (to.meta.requiresAuth && !authenticated) {
-    next('/login')
+  // If going to login page and already authenticated, redirect to transactions
+  if (to.meta.requiresGuest && authenticated) {
+    next('/transactions')
     return
   }
 
-  // Guest-only route
-  if (to.meta.requiresGuest && authenticated) {
-    next('/inputform')
+  // If route requires auth and not authenticated, redirect to login
+  if (to.meta.requiresAuth && !authenticated) {
+    next('/login')
     return
   }
 

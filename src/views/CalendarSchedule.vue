@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import Swal from 'sweetalert2'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import dayjs from 'dayjs'
+import { supabase } from '@/utils/supabase'
 
 const selectedSheet = ref('')
 const sheetOptions = ref([])
@@ -222,14 +223,35 @@ const fetchSheetData = async () => {
 
   loading.value = true
   try {
-    const response = await fetch(
-      `https://script.google.com/macros/s/AKfycbywwa6AOFAIZYUg9GYHl-YDwcQIhf-GHC5xF-7wqcX7cPVEkx-JwnYvfSAmI4Pyn_Uy/exec?sheetName=${selectedSheet.value}`,
-    )
+    // Fetch transactions for selected sheet from Supabase
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('sheet_id', selectedSheet.value)
+      .order('created_at', { ascending: false })
 
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    if (error) throw error
 
-    const data = await response.json()
-    tableData.value = data.rows || []
+    // Transform data to match the expected format for calendar
+    tableData.value = (data || []).map((row) => ({
+      id: row.id,
+      'Transaction ID': row.transaction_id,
+      'Date Requested': row.date_requested,
+      'Equipment Activity': row.equipment_activity,
+      'RS Number': row.rs_number,
+      'PO Number': row.po_number,
+      ATW: row.atw,
+      'Schedule From': row.schedule_date_from,
+      'Schedule To': row.schedule_date_to,
+      'Requested By': row.requested_by,
+      From: row.from_location,
+      To: row.to_location,
+      'Assigned SL/PM': row.assigned_sl_pm,
+      Remarks: row.remarks,
+      'Delivery Start': row.delivery_start,
+      'Projected Delivery Date': row.projected_delivery_date,
+      'Actual Delivered Date': row.actual_delivered_date,
+    }))
   } catch (err) {
     console.error('Fetch error:', err)
     Swal.fire('Error', 'Failed to load sheet data. Please try again.', 'error')
@@ -240,15 +262,19 @@ const fetchSheetData = async () => {
 
 const fetchSheetNames = async () => {
   try {
-    const res = await fetch(
-      'https://script.google.com/macros/s/AKfycbywwa6AOFAIZYUg9GYHl-YDwcQIhf-GHC5xF-7wqcX7cPVEkx-JwnYvfSAmI4Pyn_Uy/exec',
-    )
-    const data = await res.json()
-    sheetOptions.value = (data.sheets || []).filter((name) => name !== 'OverallTransaction')
+    // Fetch sheets from Supabase
+    const { data, error } = await supabase.from('sheets').select('id, name').order('name')
+
+    if (error) throw error
+
+    sheetOptions.value = (data || []).map((sheet) => ({
+      title: sheet.name,
+      value: sheet.id,
+    }))
 
     // Auto-select the first one
     if (sheetOptions.value.length) {
-      selectedSheet.value = sheetOptions.value[0]
+      selectedSheet.value = sheetOptions.value[0].value
       await fetchSheetData()
     }
   } catch (err) {
@@ -271,6 +297,8 @@ onMounted(() => {
             <v-select
               v-model="selectedSheet"
               :items="sheetOptions"
+              item-title="title"
+              item-value="value"
               label="Select Sheet"
               variant="outlined"
               density="compact"

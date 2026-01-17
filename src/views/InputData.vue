@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Swal from 'sweetalert2'
+import { supabase } from '@/utils/supabase'
 
 const form = ref(null)
 const submitting = ref(false)
@@ -26,70 +27,135 @@ const formData = ref({
   deliveredDate: '',
 })
 
-//fetching from excel
-onMounted(async () => {
+// New sheet dialog
+const newSheetDialog = ref(false)
+const newSheetName = ref('')
+const newSheetDescription = ref('')
+const creatingSheet = ref(false)
+
+// Fetch sheets from Supabase
+const fetchSheets = async () => {
   try {
-    const res = await fetch(
-      'https://script.google.com/macros/s/AKfycbywwa6AOFAIZYUg9GYHl-YDwcQIhf-GHC5xF-7wqcX7cPVEkx-JwnYvfSAmI4Pyn_Uy/exec',
-    )
-    const data = await res.json()
-    //hide the overall transaction
-    sheetOptions.value = (data.sheets || []).filter((name) => name !== 'OverallTransaction')
+    const { data, error } = await supabase.from('sheets').select('id, name').order('name')
+
+    if (error) throw error
+    sheetOptions.value = data || []
   } catch (err) {
     console.error('Failed to fetch sheets:', err)
   }
+}
+
+onMounted(() => {
+  fetchSheets()
 })
+
+// Create new sheet
+const createNewSheet = async () => {
+  if (!newSheetName.value.trim()) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Sheet Name Required',
+      text: 'Please enter a name for the new sheet.',
+      confirmButtonColor: '#ff9800',
+    })
+    return
+  }
+
+  creatingSheet.value = true
+  try {
+    const { data, error } = await supabase
+      .from('sheets')
+      .insert([
+        {
+          name: newSheetName.value.trim(),
+          description: newSheetDescription.value.trim() || null,
+        },
+      ])
+      .select()
+
+    if (error) throw error
+
+    // Refresh sheets list
+    await fetchSheets()
+
+    // Auto-select the newly created sheet
+    if (data && data[0]) {
+      formData.value.sheetName = data[0].id
+    }
+
+    // Close dialog and reset
+    newSheetDialog.value = false
+    newSheetName.value = ''
+    newSheetDescription.value = ''
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Sheet Created!',
+      text: `"${data[0].name}" has been created successfully.`,
+      confirmButtonColor: '#2e7d32',
+      background: '#f1f8e9',
+      color: '#1b5e20',
+      timer: 2000,
+      showConfirmButton: false,
+    })
+  } catch (error) {
+    console.error('Failed to create sheet:', error)
+    Swal.fire({
+      icon: 'error',
+      title: 'Failed to Create Sheet',
+      text: error.message,
+      confirmButtonColor: '#d32f2f',
+    })
+  } finally {
+    creatingSheet.value = false
+  }
+}
+
+const closeNewSheetDialog = () => {
+  newSheetDialog.value = false
+  newSheetName.value = ''
+  newSheetDescription.value = ''
+}
 
 const handleSubmit = async () => {
   submitting.value = true
   message.value = { type: '', text: '' }
 
   try {
-    const formObj = {
-      sheetName: formData.value.sheetName,
-      'Date Requested': formData.value.dateRequested,
-      'Equipment Activity': formData.value.equipmentActivity,
-      'RS Number': formData.value.rsNumber,
-      'PO Number': formData.value.poNumber,
-      ATW: formData.value.atWithdraw,
-      'Date Of Schedule - From': formData.value.scheduleDateFrom,
-      'Date Of Schedule - To': formData.value.scheduleDateTo,
-      'Requested By': formData.value.requestedBy,
-      From: formData.value.from,
-      To: formData.value.to,
-      'Assigned SL/PM': formData.value.assigned,
-      Remarks: formData.value.remarks,
-      'Delivery Start': formData.value.deliveryStart,
-      'Projected Delivery Date': formData.value.deliveredDate,
+    const transactionData = {
+      sheet_id: formData.value.sheetName || null, // This is the sheet ID from the select
+      date_requested: formData.value.dateRequested || null,
+      equipment_activity: formData.value.equipmentActivity || null,
+      rs_number: formData.value.rsNumber || null,
+      po_number: formData.value.poNumber || null,
+      atw: formData.value.atWithdraw || null,
+      schedule_date_from: formData.value.scheduleDateFrom || null,
+      schedule_date_to: formData.value.scheduleDateTo || null,
+      requested_by: formData.value.requestedBy || null,
+      from_location: formData.value.from || null,
+      to_location: formData.value.to || null,
+      assigned_sl_pm: formData.value.assigned || null,
+      remarks: formData.value.remarks || 'Pending',
+      delivery_start: formData.value.deliveryStart || null,
+      projected_delivery_date: formData.value.deliveredDate || null,
     }
 
-    //submitting the data
-    const response = await fetch(
-      'https://script.google.com/macros/s/AKfycbywwa6AOFAIZYUg9GYHl-YDwcQIhf-GHC5xF-7wqcX7cPVEkx-JwnYvfSAmI4Pyn_Uy/exec',
-      {
-        method: 'POST',
-        body: JSON.stringify(formObj),
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
-        },
-      },
-    )
+    // Insert into Supabase
+    const { data, error } = await supabase.from('transactions').insert([transactionData]).select()
 
-    const data = await response.json()
-    if (data.status === 'success') {
-      await Swal.fire({
-        icon: 'success',
-        title: 'Submitted Successfully!',
-        text: data.message,
-        confirmButtonColor: '#2e7d32',
-        background: '#f1f8e9',
-        color: '#1b5e20',
-      })
-      handleReset()
-    } else {
-      throw new Error(data.message)
-    }
+    if (error) throw error
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Submitted Successfully!',
+      text: 'Transaction has been saved to the database.',
+      confirmButtonColor: '#2e7d32',
+      background: '#f1f8e9',
+      color: '#1b5e20',
+    })
+    handleReset()
   } catch (error) {
+    console.error('Submission error:', error)
     Swal.fire({
       icon: 'error',
       title: 'Submission Failed',
@@ -194,6 +260,8 @@ const handleReset = () => {
                       <v-select
                         v-model="formData.sheetName"
                         :items="sheetOptions"
+                        item-title="name"
+                        item-value="id"
                         label="Project Sheet"
                         name="sheetName"
                         required
@@ -202,7 +270,20 @@ const handleReset = () => {
                         color="success"
                         prepend-inner-icon="mdi-file-document"
                         class="modern-field"
-                      />
+                        :no-data-text="'No sheets available. Create one!'"
+                      >
+                        <template v-slot:append-item>
+                          <v-divider class="my-2" />
+                          <v-list-item @click="newSheetDialog = true" class="text-success">
+                            <template v-slot:prepend>
+                              <v-icon color="success">mdi-plus-circle</v-icon>
+                            </template>
+                            <v-list-item-title class="font-weight-medium">
+                              Create New Sheet
+                            </v-list-item-title>
+                          </v-list-item>
+                        </template>
+                      </v-select>
                     </div>
                   </v-col>
                   <v-col cols="12" md="6">
@@ -500,6 +581,55 @@ const handleReset = () => {
           </v-card>
         </v-container>
       </div>
+
+      <!-- Create New Sheet Dialog -->
+      <v-dialog v-model="newSheetDialog" max-width="500" persistent>
+        <v-card class="rounded-xl">
+          <v-card-title class="bg-success text-white pa-4">
+            <v-icon class="mr-2">mdi-folder-plus</v-icon>
+            Create New Project Sheet
+          </v-card-title>
+          <v-card-text class="pa-6">
+            <v-text-field
+              v-model="newSheetName"
+              label="Sheet Name"
+              placeholder="e.g., Site A - Main Building"
+              variant="outlined"
+              color="success"
+              prepend-inner-icon="mdi-file-document"
+              autofocus
+              :rules="[(v) => !!v || 'Sheet name is required']"
+              class="mb-4"
+            />
+            <v-textarea
+              v-model="newSheetDescription"
+              label="Description (Optional)"
+              placeholder="Enter a brief description of this project..."
+              variant="outlined"
+              color="success"
+              prepend-inner-icon="mdi-text"
+              rows="3"
+              auto-grow
+            />
+          </v-card-text>
+          <v-card-actions class="pa-4 pt-0">
+            <v-spacer />
+            <v-btn variant="text" @click="closeNewSheetDialog" :disabled="creatingSheet">
+              Cancel
+            </v-btn>
+            <v-btn
+              color="success"
+              variant="flat"
+              @click="createNewSheet"
+              :loading="creatingSheet"
+              :disabled="!newSheetName.trim()"
+            >
+              <v-icon left>mdi-plus</v-icon>
+              Create Sheet
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </template>
   </AppLayout>
 </template>

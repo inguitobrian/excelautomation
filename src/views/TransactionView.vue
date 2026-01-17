@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import { supabase } from '@/utils/supabase'
 
 const overallData = ref([])
 const loadingOverall = ref(false)
@@ -29,10 +30,36 @@ function formatCell(value) {
 }
 
 function formatHeader(key) {
-  return key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/^./, (str) => str.toUpperCase())
-    .trim()
+  // Map database column names to display names
+  const headerMap = {
+    sheet_name: 'Sheet Name',
+    transaction_id: 'Transaction ID',
+    date_requested: 'Date Requested',
+    equipment_activity: 'Equipment Activity',
+    rs_number: 'RS Number',
+    po_number: 'PO Number',
+    atw: 'ATW',
+    schedule_date_from: 'Schedule From',
+    schedule_date_to: 'Schedule To',
+    requested_by: 'Requested By',
+    from_location: 'From',
+    to_location: 'To',
+    assigned_sl_pm: 'Assigned SL/PM',
+    remarks: 'Remarks',
+    delivery_start: 'Delivery Start',
+    projected_delivery_date: 'Projected Delivery Date',
+    actual_delivered_date: 'Actual Delivered Date',
+    created_at: 'Created At',
+  }
+
+  return (
+    headerMap[key] ||
+    key
+      .replace(/_/g, ' ')
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, (str) => str.toUpperCase())
+      .trim()
+  )
 }
 
 const filteredData = computed(() => {
@@ -71,17 +98,70 @@ const totalPages = computed(() => {
 })
 
 const headers = computed(() => {
-  return Object.keys(overallData.value[0] || {})
+  if (!overallData.value.length) return []
+  // Define the order of columns to display
+  const orderedKeys = [
+    'sheet_name',
+    'transaction_id',
+    'date_requested',
+    'equipment_activity',
+    'rs_number',
+    'po_number',
+    'atw',
+    'schedule_date_from',
+    'schedule_date_to',
+    'requested_by',
+    'from_location',
+    'to_location',
+    'assigned_sl_pm',
+    'remarks',
+    'delivery_start',
+    'projected_delivery_date',
+    'actual_delivered_date',
+    'created_at',
+  ]
+  // Only return keys that exist in the data
+  const dataKeys = Object.keys(overallData.value[0] || {})
+  return orderedKeys.filter((key) => dataKeys.includes(key))
 })
 
 const fetchOverallTransaction = async () => {
   loadingOverall.value = true
   try {
-    const res = await fetch(
-      'https://script.google.com/macros/s/AKfycbywwa6AOFAIZYUg9GYHl-YDwcQIhf-GHC5xF-7wqcX7cPVEkx-JwnYvfSAmI4Pyn_Uy/exec?sheetName=OverallTransaction',
-    )
-    const data = await res.json()
-    overallData.value = data.rows || []
+    // Fetch all transactions with sheet name using Supabase
+    const { data, error } = await supabase
+      .from('transactions')
+      .select(
+        `
+        *,
+        sheets (name)
+      `,
+      )
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    // Transform data to flatten the sheet name
+    overallData.value = (data || []).map((row) => ({
+      sheet_name: row.sheets?.name || 'N/A',
+      transaction_id: row.transaction_id,
+      date_requested: row.date_requested,
+      equipment_activity: row.equipment_activity,
+      rs_number: row.rs_number,
+      po_number: row.po_number,
+      atw: row.atw,
+      schedule_date_from: row.schedule_date_from,
+      schedule_date_to: row.schedule_date_to,
+      requested_by: row.requested_by,
+      from_location: row.from_location,
+      to_location: row.to_location,
+      assigned_sl_pm: row.assigned_sl_pm,
+      remarks: row.remarks,
+      delivery_start: row.delivery_start,
+      projected_delivery_date: row.projected_delivery_date,
+      actual_delivered_date: row.actual_delivered_date,
+      created_at: row.created_at,
+    }))
   } catch (err) {
     console.error('Failed to fetch Overall Transaction data:', err)
   } finally {
